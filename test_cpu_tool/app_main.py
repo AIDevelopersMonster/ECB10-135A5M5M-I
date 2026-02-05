@@ -1,16 +1,16 @@
 # app_main.py
 # -*- coding: utf-8 -*-
 
-import time
 import threading
+import time
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 from serial.tools import list_ports
-
 from shell_executor import ShellExecutor
 from terminal_tab import TerminalTab
 from test_cpu_tab import TestCPUTab
+from test_gpio_tab import TestGPIOTab
 
 
 def list_ports_pretty():
@@ -73,6 +73,9 @@ class MainApp(tk.Tk):
 
         self.cpu_tab = TestCPUTab(self.nb, executor=self.exec, log_fn=self.log)
         self.nb.add(self.cpu_tab, text="Test CPU")
+
+        self.gpio_tab = TestGPIOTab(self.nb, executor=self.exec, log_fn=self.log)
+        self.nb.add(self.gpio_tab, text="Test GPIO")
 
         # global log (small)
         lf = ttk.Labelframe(self, text="App Log")
