@@ -9,7 +9,7 @@ from serial.tools import list_ports
 
 from shell_executor import ShellExecutor
 from terminal_tab import TerminalTab
-from {{tab_module}} import {{tab_class}}
+from test_led_tab import TestLedTab
 
 
 def list_ports_pretty():
@@ -23,7 +23,7 @@ def list_ports_pretty():
 class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("{{ToolName}} — COM Tool")
+        self.title("Led — COM Tool")
         self.geometry("1150x780")
 
         self.exec = ShellExecutor()
@@ -71,8 +71,8 @@ class MainApp(tk.Tk):
         self.nb.add(self.term_tab, text="Terminal")
 
         # main test tab (single purpose)
-        self.main_tab = {{tab_class}}(self.nb, executor=self.exec, log_fn=self.log)
-        self.nb.add(self.main_tab, text="{{ToolName}}")
+        self.main_tab = TestLedTab(self.nb, executor=self.exec, log_fn=self.log)
+        self.nb.add(self.main_tab, text="Led")
 
         # global log (small)
         lf = ttk.Labelframe(self, text="App Log")
