@@ -8,10 +8,12 @@ from tkinter import ttk
 
 
 CPU_COMMANDS = [
+    ("CPU info (full)",    "cat /proc/cpuinfo | head -n 200"),
     ("Model",              "cat /proc/device-tree/model 2>/dev/null || echo '(no model)'"),
     ("Kernel",             "uname -a"),
     ("CPU info (short)",   "cat /proc/cpuinfo | egrep -i 'model name|Hardware|processor|BogoMIPS' | head -n 50"),
     ("Meminfo",            "cat /proc/meminfo | head -n 30"),
+    ("Check Nand",            "cat /proc/mtd | head -n 30"),
     ("Uptime",             "uptime; cat /proc/loadavg"),
     ("Top (5 lines)",      "top -b -n 1 | head -n 15"),
     ("Dmesg (last 50)",    "dmesg | tail -n 50"),
