@@ -310,15 +310,30 @@ class TestUsbTab(ttk.Frame):
                 if not ok:
                     ok_all = False
 
+            # Safety: unmount if already mounted
             self._cmd(f"mount | grep -q ' {self.mount_point} ' && umount {self.mount_point} || true")
+
             cmd("Prepare mountpoint", f"mkdir -p {self.mount_point}")
+
             cmd("Mount", f"mount -t vfat {dev} {self.mount_point}")
+
             cmd("Write", f"echo '{self.test_payload}' > {self.mount_point}/{self.test_file}")
-            cmd("Sync", "sync")
+
+            cmd("Sync (after write)", "sync")
+
+            # Read back and compare
             _, read_back = self._cmd(f"cat {self.mount_point}/{self.test_file}")
             if read_back.strip() != self.test_payload:
                 ok_all = False
+
+            # Extra sync BEFORE umount
+            cmd("Sync (before umount)", "sync")
+
             cmd("Umount", f"umount {self.mount_point}")
+
+            # Final sync + small delay (VERY important for USB flash)
+            cmd("Sync (after umount)", "sync")
+            time.sleep(0.3)
 
             def ui():
                 self.port_status[port] = "pass" if ok_all else "fail"
