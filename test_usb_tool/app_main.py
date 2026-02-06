@@ -1,39 +1,16 @@
-# ============================================================
-# NOTEBOOK TABS
-#
-# To add a new tab:
-# 1. Import your tab class at the top of this file
-#    (e.g. from test_can_tab import TestCanTab)
-#
-# 2. Create the tab instance with:
-#       <name> = <TabClass>(self.nb, executor=self.exec, log_fn=self.log)
-#
-# 3. Add it to the notebook:
-#       self.nb.add(<name>, text="Tab Title")
-#
-# Each tab is an independent module and may run hardware tests.
-# ============================================================
 # -*- coding: utf-8 -*-
-import threading
+
 import time
+import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 from serial.tools import list_ports
+
 from shell_executor import ShellExecutor
 from terminal_tab import TerminalTab
-from test_cpu_tab import TestCPUTab
-from test_gpio_tab import TestGPIOTab
-from test_led_tab import TestLedTab
-from test_uart5_tab import TestUart5Tab
-from test_usart3_tab import TestUsart3Tab
-from test_can_tab import TestCanTab
 from test_usb_tab import TestUsbTab
 
-# ============================================================
-# 1. Import your tab class at the top of this file
-#    (e.g. from test_can_tab import TestCanTab)
-# ============================================================
 
 def list_ports_pretty():
     out = []
@@ -46,7 +23,7 @@ def list_ports_pretty():
 class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("MyTools — Shared COM + Tabs")
+        self.title("USB — COM Tool")
         self.geometry("1150x780")
 
         self.exec = ShellExecutor()
@@ -93,37 +70,9 @@ class MainApp(tk.Tk):
         self.term_tab = TerminalTab(self.nb, executor=self.exec, log_fn=self.log)
         self.nb.add(self.term_tab, text="Terminal")
 
-        self.cpu_tab = TestCPUTab(self.nb, executor=self.exec, log_fn=self.log)
-        self.nb.add(self.cpu_tab, text="CPU")
-
-        self.gpio_tab = TestGPIOTab(self.nb, executor=self.exec, log_fn=self.log)
-        self.nb.add(self.gpio_tab, text="GPIO")
-
-        # --- LED test tab ---
-        self.led_tab = TestLedTab(self.nb, executor=self.exec, log_fn=self.log)
-        self.nb.add(self.led_tab, text="LED")
-
-        # --- UART5 test tab ---
-        self.uart5_tab = TestUart5Tab(self.nb, executor=self.exec, log_fn=self.log)
-        self.nb.add(self.uart5_tab, text="UART5")
-
-        # --- USART3 test tab ---
-        self.usart3_tab = TestUsart3Tab(self.nb, executor=self.exec, log_fn=self.log)
-        self.nb.add(self.usart3_tab, text="USART3")
-
-        # --- CAN test tab ---
-        self.can_tab = TestCanTab(self.nb, executor=self.exec, log_fn=self.log)
-        self.nb.add(self.can_tab, text="CAN")
-
-        # --- USB test tab ---
-        self.usb_tab = TestUsbTab(self.nb, executor=self.exec, log_fn=self.log)
-        self.nb.add(self.usb_tab, text="USB")
-
-        # 2. Create the tab instance with:
-        #       <name> = <TabClass>(self.nb, executor=self.exec, log_fn=self.log)
-        #
-        # 3. Add it to the notebook:
-        #       self.nb.add(<name>, text="Tab Title")
+        # main test tab (single purpose)
+        self.main_tab = TestUsbTab(self.nb, executor=self.exec, log_fn=self.log)
+        self.nb.add(self.main_tab, text="USB")
 
         # global log (small)
         lf = ttk.Labelframe(self, text="App Log")
@@ -133,12 +82,8 @@ class MainApp(tk.Tk):
 
     def log(self, s: str):
         ts = time.strftime("%H:%M:%S")
-
-        def ui_write():
-            self.log_text.insert("end", f"[{ts}] {s}\n")
-            self.log_text.see("end")
-
-        self.after(0, ui_write)
+        self.log_text.insert("end", f"[{ts}] {s}\n")
+        self.log_text.see("end")
 
     def scan_ports(self):
         ports = list_ports_pretty()
@@ -177,6 +122,7 @@ class MainApp(tk.Tk):
             try:
                 self.exec.connect(port, baud=baud, username=user, password=pwd)
                 ok, msg = self.exec.ensure_shell()
+
                 def ui():
                     if ok:
                         self.status_var.set(f"Connected: {port}")
@@ -187,6 +133,7 @@ class MainApp(tk.Tk):
                         self.status_var.set("Disconnected")
                         self.btn_conn.config(text="Connect", state="normal")
                         messagebox.showerror("Shell", msg)
+
                 self.after(0, ui)
             except Exception as e:
                 err_msg = str(e)
@@ -194,6 +141,7 @@ class MainApp(tk.Tk):
                     self.status_var.set("Disconnected")
                     self.btn_conn.config(text="Connect", state="normal")
                     messagebox.showerror("Connect error", msg)
+
                 self.after(0, ui2)
 
         threading.Thread(target=worker, daemon=True).start()
