@@ -29,6 +29,8 @@ from test_uart5_tab import TestUart5Tab
 from test_usart3_tab import TestUsart3Tab
 from test_can_tab import TestCanTab
 from test_usb_tab import TestUsbTab
+from test_otg_tab import TestOtgTab
+from test_sd_tab import TestSDTab
 
 # ============================================================
 # 1. Import your tab class at the top of this file
@@ -118,6 +120,14 @@ class MainApp(tk.Tk):
         # --- USB test tab ---
         self.usb_tab = TestUsbTab(self.nb, executor=self.exec, log_fn=self.log)
         self.nb.add(self.usb_tab, text="USB")
+
+        # --- OTG test tab ---
+        self.otg_tab = TestOtgTab(self.nb, executor=self.exec, log_fn=self.log)
+        self.nb.add(self.otg_tab, text="OTG")
+
+        # --- SD test tab ---
+        self.sd_tab = TestSDTab(self.nb, executor=self.exec, log_fn=self.log)
+        self.nb.add(self.sd_tab, text="SD")
 
         # 2. Create the tab instance with:
         #       <name> = <TabClass>(self.nb, executor=self.exec, log_fn=self.log)
