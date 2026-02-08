@@ -1,84 +1,138 @@
-# test_{{tool_name}}_tool
+# Тестирование USB-тачскрина (HDMI + touch)
 
-Lightweight GUI test tool for embedded Linux boards using a shared serial console.
+Этот тест предназначен для проверки работоспособности сенсорного экрана, подключённого по USB (обычно в составе HDMI-монитора с touch).
 
-This project is a **standalone, single-purpose test application** built to develop and validate
-one specific test tab in isolation before integrating it into a multi-tab tool.
+Тест не пытается обрабатывать координаты внутри GUI-приложения, так как на практике это работает нестабильно в псевдотерминалах (например, внутри Tkinter), и даёт искажённую картину по сравнению с реальным терминалом.
 
----
-
-## Purpose
-
-`test_{{tool_name}}_tool` exists to:
-
-- Develop and debug the `{{ToolName}}` test tab independently
-- Validate UI, logic, and shell interaction without interference from other tests
-- Produce a **self-contained, ready-to-copy test tab** for later integration
-
-Once finalized, the `{{ToolName}}` tab can be copied **as-is** into a multi-tab project.
+Наша задача — обнаружить устройство и показать, как корректно проверить его вручную.
 
 ---
 
-## Design Principles
+## Что именно проверяется
 
-- One shared serial connection
-- One functional test tab + Terminal
-- No background services
-- No automatic decisions or policy enforcement
-- Explicit command execution and visible output
-- BusyBox-friendly
+- **Обнаружение USB-устройства тачскрина**
+  - Проверяется факт подключения
+  - Проверяется, что устройство зарегистрировано как `input`-устройство
 
-The tool **shows facts and results**, not conclusions.
+- **Регистрация в input-подсистеме Linux**
+  - Наличие `/dev/input/event*`
+  - Корректное имя устройства
+  - Поддержка `EV_ABS` / `EV_KEY` (типично для touch)
 
----
-
-## Application Structure
-
-test_{{tool_name}}tool/
-├── app_main.py # Main GUI application (Terminal + {{ToolName}} tab)
-├── shell_executor.py # Shared serial shell executor
-├── terminal_tab.py # Interactive terminal tab
-├── test{{tool_name}}_tab.py # {{ToolName}} test tab (primary subject of this project)
-└── README.md
-
+- **Готовность к полноценному тестированию**
+  - Пользователю предлагается выполнить `evtest` в реальном терминале
 
 ---
 
-## `{{ToolName}}` Test Tab
+## Почему координаты не читаются в окне теста
 
-Implemented in:
+> ⚠️ Это известное и ожидаемое поведение, а не баг платы или ядра.
 
-test_{{tool_name}}_tab.py
+**Причины:**
 
+- `evdev`-события (`ABS_X` / `ABS_Y`) нормально работают **только в реальном терминале**
+- Встроенный псевдотерминал (Tkinter / embedded console):
+  - теряет часть событий
+  - не получает координаты
+  - может показывать только факт нажатия
 
-### Responsibilities
-
-- Provide a clear and explicit UI for `{{ToolName}}` testing
-- Execute shell commands only via the shared `ShellExecutor`
-- Avoid hard dependencies on `app_main.py`
-- Remain fully portable between projects
+> 👉 В **MobaXterm / SSH / UART-консоли** всё работает корректно — это подтверждено практикой.
 
 ---
 
-## Requirements
+## Типичный вывод ядра (пример)
 
-- Python 3.8+
-- pyserial
-- tkinter (included with most Python distributions)
+```text
+input: wch.cn USB2IIC_CTP_CONTROL Touchscreen as /devices/.../input/input1
+hid-generic 0003:1A86:E2E3.0001: input,hidraw0: USB HID v1.00 Device [wch.cn USB2IIC_CTP_CONTROL] on usb-...
+```
 
-Install dependency:
+**Это означает:**
+
+- ✅ тачскрин определился
+- ✅ работает через USB HID
+- ✅ драйвер в ядре есть и активен
+
+---
+
+## Как проверить тачскрин правильно
+
+### 1. Найти input-устройство
+
 ```bash
-pip install pyserial
-Running the Tool
-python app_main.py
-Portability & Integration
-After the {{ToolName}} tab is finalized:
+ls -l /dev/input/event*
+```
 
-Copy test_{{tool_name}}_tab.py into a multi-tab project
+или
 
-Add the import in app_main.py
+```bash
+cat /proc/bus/input/devices
+```
 
-Register the tab in the Notebook
+Найди устройство с названием, похожим на:
 
-No internal changes to the tab should be required.
+```
+wch.cn USB2IIC_CTP_CONTROL Touchscreen
+```
+
+### 2. Запустить `evtest` (ОБЯЗАТЕЛЬНО в реальном терминале)
+
+```bash
+sudo apt install evtest    # если не установлен
+evtest
+```
+
+Выбери нужный `eventX` (например, `/dev/input/event3`).
+
+### 3. Проверить реакцию на касания
+
+При касании экрана ты должен видеть события вида:
+
+```
+Event type 3 (EV_ABS)
+  Event code 0 (ABS_X) : value 1234
+  Event code 1 (ABS_Y) : value 567
+
+Event type 1 (EV_KEY)
+  Event code 330 (BTN_TOUCH) : value 1
+```
+
+> ✅ Если координаты меняются — тач полностью исправен.
+
+---
+
+## Что тест НЕ делает (осознанно)
+
+- ❌ не читает координаты в GUI
+- ❌ не эмулирует `evtest`
+- ❌ не пытается «исправить» Linux input subsystem
+- ❌ не делает выводов о калибровке
+
+**Это сделано специально, чтобы:**
+
+- не вводить в заблуждение
+- не маскировать реальные проблемы
+- не плодить нестабильный код
+
+---
+
+## Выводы
+
+- ✅ USB-тачскрин по HDMI работает
+- ✅ Драйвер в ядре есть
+- ✅ Устройство корректно регистрируется
+- ⚠️ Проверка координат **только через реальный терминал**
+- 🧠 GUI-утилита используется как **индикатор наличия** и **подсказка**, а не как измерительный прибор
+
+---
+
+## Рекомендуется
+
+- Для демонстрации — использовать **MobaXterm / SSH**
+- Для диагностики — `evtest`
+- Для видео — отдельно показать:
+  - вкладку *Touch* (обнаружение)
+  - реальный терминал с координатами
+
+---
 
