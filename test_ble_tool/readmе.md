@@ -1,84 +1,193 @@
-# test_{{tool_name}}_tool
+Отлично, фиксируем результат и **закрываем BLE-этап правильно**. Ниже — готовый `README.md`, в инженерном стиле, без воды, отражает **что реально сделали**, **что работает**, и **что логично делать дальше**.
 
-Lightweight GUI test tool for embedded Linux boards using a shared serial console.
-
-This project is a **standalone, single-purpose test application** built to develop and validate
-one specific test tab in isolation before integrating it into a multi-tab tool.
+Ты можешь **прямо так сохранить файл** как `README.md` в папке BLE.
 
 ---
 
-## Purpose
+````md
+# BLE (Bluetooth Low Energy) — текущий статус и дальнейшие шаги
 
-`test_{{tool_name}}_tool` exists to:
+## Цель этапа
 
-- Develop and debug the `{{ToolName}}` test tab independently
-- Validate UI, logic, and shell interaction without interference from other tests
-- Produce a **self-contained, ready-to-copy test tab** for later integration
+На данном этапе задача состояла **не в реализации полноценного BLE-приложения**,  
+а в том, чтобы:
 
-Once finalized, the `{{ToolName}}` tab can be copied **as-is** into a multi-tab project.
-
----
-
-## Design Principles
-
-- One shared serial connection
-- One functional test tab + Terminal
-- No background services
-- No automatic decisions or policy enforcement
-- Explicit command execution and visible output
-- BusyBox-friendly
-
-The tool **shows facts and results**, not conclusions.
+- проверить работоспособность Bluetooth-стека на плате
+- добиться **реального появления платы в BLE-сканере телефона (nRF Connect)**
+- зафиксировать **минимальный, стабильный и воспроизводимый сценарий**
+- интегрировать этот сценарий в GUI **без падений и побочных эффектов**
 
 ---
 
-## Application Structure
+## Что за среда используется
 
-test_{{tool_name}}tool/
-├── app_main.py # Main GUI application (Terminal + {{ToolName}} tab)
-├── shell_executor.py # Shared serial shell executor
-├── terminal_tab.py # Interactive terminal tab
-├── test{{tool_name}}_tab.py # {{ToolName}} test tab (primary subject of this project)
-└── README.md
-
+- Плата: **EBYTE STM32MP135**
+- ОС: Embedded Linux (BusyBox / Buildroot-подобная)
+- BlueZ: **5.63**
+- Управление: `bluetoothctl`
+- Телефон: Android + **nRF Connect**
 
 ---
 
-## `{{ToolName}}` Test Tab
+## Ключевое наблюдение
 
-Implemented in:
+BLE-устройство **появляется в BLE-сканере телефона только при корректно
+настроенном advertising-профиле**.
 
-test_{{tool_name}}_tab.py
+Простая команда:
 
+```sh
+bluetoothctl advertise on
+````
 
-### Responsibilities
+— **включает advertising**,
+но **по умолчанию без имени** (`Name: off`),
+из-за чего устройство **часто не отображается в nRF Connect**.
 
-- Provide a clear and explicit UI for `{{ToolName}}` testing
-- Execute shell commands only via the shared `ShellExecutor`
-- Avoid hard dependencies on `app_main.py`
-- Remain fully portable between projects
+Следовательно, **обязателен шаг задания имени** через `menu advertise`.
 
 ---
 
-## Requirements
+## Рабочий сценарий (проверен вручную и через GUI)
 
-- Python 3.8+
-- pyserial
-- tkinter (included with most Python distributions)
+### Запуск BLE advertising
 
-Install dependency:
-```bash
-pip install pyserial
-Running the Tool
-python app_main.py
-Portability & Integration
-After the {{ToolName}} tab is finalized:
+Последовательность команд **строго важна**:
 
-Copy test_{{tool_name}}_tab.py into a multi-tab project
+```text
+bluetoothctl
+power on
+menu advertise
+name EBYTE_BLE
+back
+advertise on
+```
 
-Add the import in app_main.py
+Результат:
 
-Register the tab in the Notebook
+* BLE advertising активен
+* устройство видно в **nRF Connect**
+* отображается с именем **EBYTE_BLE**
 
-No internal changes to the tab should be required.
+---
+
+### Остановка BLE
+
+```text
+advertise off
+power off
+exit
+```
+
+---
+
+## Реализация в GUI
+
+В проекте реализована **интерактивная BLE-вкладка**, которая:
+
+* **не использует пайпы (`|`)**
+* **не запускает новые процессы bluetoothctl**
+* работает с **одной интерактивной сессией**, как в терминале
+* повторяет ручной сценарий **кнопка в кнопку**
+* **не падает** при запуске и использовании
+
+### Кнопки расположены в логическом порядке:
+
+#### Start BLE
+
+1. `bluetoothctl (enter)`
+2. `power on`
+3. `menu advertise`
+4. `name EBYTE_BLE`
+5. `back`
+6. `advertise on`
+
+#### Stop BLE
+
+1. `advertise off`
+2. `power off`
+3. `exit`
+
+#### Service
+
+* `Clear output` — очистка окна вывода
+
+Такой подход позволяет:
+
+* пошагово демонстрировать BLE в видео
+* вручную контролировать состояние
+* легко диагностировать проблемы без скрытой логики
+
+---
+
+## Что сознательно НЕ делалось на этом этапе
+
+Это важно зафиксировать:
+
+* ❌ не запускался GATT-сервер
+* ❌ не использовались Python-скрипты BlueZ
+* ❌ не добавлялись сервисы и характеристики
+* ❌ не модифицировался systemd / bluetoothd
+* ❌ не производилась сборка нового rootfs
+
+Причина: текущий образ **не содержит `python-dbus`**,
+а цель этапа — **проверка BLE-стека и advertising**, а не приложения.
+
+---
+
+## Что уже подтверждено как рабочее
+
+* Bluetooth-контроллер работает
+* BLE advertising включается
+* Имя корректно передаётся в рекламе
+* Плата обнаруживается в nRF Connect
+* GUI-интеграция стабильна
+
+Этот этап можно считать **PASS**.
+
+---
+
+## Логичные следующие шаги
+
+Дальнейшее развитие возможно по нескольким направлениям:
+
+### 1. Автоматизация
+
+* кнопка **AUTO START BLE**
+* кнопка **AUTO STOP BLE**
+
+### 2. GATT
+
+* добавление `python-dbus` в образ
+* запуск `example-gatt-server`
+* проверка сервисов и характеристик в nRF Connect
+
+### 3. Диагностика
+
+* вкладка `BLE Status (read-only)`
+* `bluetoothctl show`
+* `hciconfig -a`
+* `btmon`
+
+### 4. Документация
+
+* отдельный `BLE_QUICK_TEST.md`
+* сценарий для видео
+* чеклист для производства
+
+---
+
+## Итог
+
+BLE-этап успешно завершён:
+
+* получен **реальный, наблюдаемый результат**
+* зафиксирован **рабочий минимум**
+* создана **стабильная GUI-вкладка**
+* определены **чёткие точки роста**
+
+Дальнейшее развитие возможно **без переделки текущей реализации**.
+
+```
+
 
