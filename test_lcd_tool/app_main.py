@@ -1,51 +1,16 @@
-# ============================================================
-# NOTEBOOK TABS
-#
-# To add a new tab:
-# 1. Import your tab class at the top of this file
-#    (e.g. from test_can_tab import TestCanTab)
-#
-# 2. Create the tab instance with:
-#       <name> = <TabClass>(self.nb, executor=self.exec, log_fn=self.log)
-#
-# 3. Add it to the notebook:
-#       self.nb.add(<name>, text="Tab Title")
-#
-# Each tab is an independent module and may run hardware tests.
-# ============================================================
 # -*- coding: utf-8 -*-
-import threading
+
 import time
+import threading
 import tkinter as tk
 from tkinter import ttk, messagebox
 
 from serial.tools import list_ports
+
 from shell_executor import ShellExecutor
 from terminal_tab import TerminalTab
-from test_cpu_tab import TestCPUTab
-from test_gpio_tab import TestGPIOTab
-from test_led_tab import TestLedTab
-from test_uart5_tab import TestUart5Tab
-from test_usart3_tab import TestUsart3Tab
-from test_can_tab import TestCanTab
-from test_usb_tab import TestUsbTab
-from test_otg_tab import TestOtgTab
-from test_sd_tab import TestSDTab
-from test_hdmi_tab import TestHdmiTab
 from test_lcd_tab import TestLcdTab
-from test_touch_tab import TestTouchTab
-from test_ethernet_tab import TestEthernetTab
-from test_wifi_tab import TestWifiTab
-from test_wifiap_tab import TestWifiapTab
-from test_spp_tab import TestSppTab
-from test_ble_tab import TestBleTab
-from test_audio_tab import TestAudioTab
-from test_mic_tab import TestMicTab
 
-# ============================================================
-# 1. Import your tab class at the top of this file
-#    (e.g. from test_can_tab import TestCanTab)
-# ============================================================
 
 def list_ports_pretty():
     out = []
@@ -58,7 +23,7 @@ def list_ports_pretty():
 class MainApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("MyTools — Shared COM + Tabs")
+        self.title("Lcd — COM Tool")
         self.geometry("1150x780")
 
         self.exec = ShellExecutor()
@@ -102,34 +67,12 @@ class MainApp(tk.Tk):
         self.nb = ttk.Notebook(self)
         self.nb.pack(side="top", fill="both", expand=True, padx=10, pady=(0, 10))
 
-        tabs = [
-            ("term_tab",   TerminalTab,   "Terminal"),
-            ("cpu_tab",    TestCPUTab,    "CPU"),
-            ("gpio_tab",   TestGPIOTab,   "GPIO"),
-            ("led_tab",    TestLedTab,    "LED"),
-            ("uart5_tab",  TestUart5Tab,  "UART5"),
-            ("usart3_tab", TestUsart3Tab, "USART3"),
-            ("can_tab",    TestCanTab,    "CAN"),
-            ("usb_tab",    TestUsbTab,    "USB"),
-            ("otg_tab",    TestOtgTab,    "OTG"),
-            ("sd_tab",     TestSDTab,     "SD"),
-            ("hdmi_tab",   TestHdmiTab,   "HDMI"),
-            ("lcd_tab",    TestLcdTab,    "LCD"),
-            ("touch_tab",  TestTouchTab,  "Touch"),
-            ("ethernet_tab", TestEthernetTab, "Ethernet"),
-            ("wifi_tab", TestWifiTab, "WiFi"),
-            ("test_wifiap", TestWifiapTab, "WiFiAP"),
-            ("test_spp", TestSppTab, "SPP"),
-            ("test_ble", TestBleTab, "BLE"),
-            ("test_audio", TestAudioTab, "Audio"),
-            ("test_mic", TestMicTab, "MIC"),
+        self.term_tab = TerminalTab(self.nb, executor=self.exec, log_fn=self.log)
+        self.nb.add(self.term_tab, text="Terminal")
 
-        ]
-
-        for attr_name, tab_cls, title in tabs:
-            tab = tab_cls(self.nb, executor=self.exec, log_fn=self.log)
-            setattr(self, attr_name, tab)
-            self.nb.add(tab, text=title)
+        # main test tab (single purpose)
+        self.main_tab = TestLcdTab(self.nb, executor=self.exec, log_fn=self.log)
+        self.nb.add(self.main_tab, text="Lcd")
 
         # global log (small)
         lf = ttk.Labelframe(self, text="App Log")
@@ -139,12 +82,8 @@ class MainApp(tk.Tk):
 
     def log(self, s: str):
         ts = time.strftime("%H:%M:%S")
-
-        def ui_write():
-            self.log_text.insert("end", f"[{ts}] {s}\n")
-            self.log_text.see("end")
-
-        self.after(0, ui_write)
+        self.log_text.insert("end", f"[{ts}] {s}\n")
+        self.log_text.see("end")
 
     def scan_ports(self):
         ports = list_ports_pretty()
@@ -183,6 +122,7 @@ class MainApp(tk.Tk):
             try:
                 self.exec.connect(port, baud=baud, username=user, password=pwd)
                 ok, msg = self.exec.ensure_shell()
+
                 def ui():
                     if ok:
                         self.status_var.set(f"Connected: {port}")
@@ -193,6 +133,7 @@ class MainApp(tk.Tk):
                         self.status_var.set("Disconnected")
                         self.btn_conn.config(text="Connect", state="normal")
                         messagebox.showerror("Shell", msg)
+
                 self.after(0, ui)
             except Exception as e:
                 err_msg = str(e)
@@ -200,6 +141,7 @@ class MainApp(tk.Tk):
                     self.status_var.set("Disconnected")
                     self.btn_conn.config(text="Connect", state="normal")
                     messagebox.showerror("Connect error", msg)
+
                 self.after(0, ui2)
 
         threading.Thread(target=worker, daemon=True).start()
